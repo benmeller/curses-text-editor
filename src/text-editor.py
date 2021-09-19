@@ -225,32 +225,32 @@ Ctl+C       Quit (do not save)
             return 1
 
         # Printable
-        if ch == ord('\n'):                         # Newline
+        if ch == ord('\n'):                                     # Newline
             self.buf.split(self.csr)
             self.right()
-        elif curses.ascii.isprint(ch):              # Printable ascii
+        elif curses.ascii.isprint(ch):                          # Printable ascii
             self.buf.insert(self.csr, chr(ch))
             for _ in chr(ch):
                 self.right()
         
         # Delete character
-        elif ch == curses.KEY_DC:                   # Delete key
+        elif ch == curses.KEY_DC or ch == curses.ascii.EOT:     # Delete key or ^D
             self.buf.delete(self.csr)
-        elif ch == 0x7f or ch == curses.ascii.DEL:  # Backspace
+        elif ch == 0x7f or ch == curses.ascii.DEL:              # Backspace
             if (self.csr.row, self.csr.col) > (0, 0):
                 self.left()
                 self.buf.delete(self.csr)
 
         # Help
-        elif ch == curses.ascii.TAB:                 # ^I (Help)
+        elif ch == curses.ascii.TAB:                            # ^I (Help)
             return self.help_screen()
 
         # Quit with or without save
-        elif ch == curses.ascii.ETB:                # ^W (Write)
+        elif ch == curses.ascii.ETB:                            # ^W (Write)
             self.save_on_exit = True
             print("SAVING...")
             return 0
-        elif ch == curses.ascii.ETX:                # ^C (Keyboard interrupt)
+        elif ch == curses.ascii.ETX:                            # ^C (Keyboard interrupt)
             return 0
         
         return 1

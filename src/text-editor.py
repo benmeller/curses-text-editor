@@ -13,7 +13,7 @@ from os import name
 from time import sleep
 
 filename = "myfile"
-contents = """I am the contents of a particular file
+contents = """I am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular file
 
 I exist over
 multiple
@@ -58,9 +58,9 @@ class Window(object):
     def translate(self, cursor):
         return cursor.row - self.row, cursor.col - self.col
 
-    def horizontal_scroll(self, cursor, left_margin=5, right_margin=2):
-        n_pages = cursor.col // (self.n_cols - right_margin)
-        self.col = max(n_pages * self.n_cols - right_margin - left_margin, 0)
+    def horizontal_scroll(self, cursor, left_margin=1, right_margin=1):
+        current_page = cursor.col // (self.n_cols - right_margin)
+        self.col = max(current_page * (self.n_cols  - right_margin) - left_margin, 0)
 
 class Cursor(object):
     def __init__(self, row=0, col=0, col_hint=None) -> None:
@@ -251,6 +251,9 @@ class TextPad(object):
         self.scr.erase()
 
         for row, line in enumerate(self.buf[self.win.row:self.win.row+self.win.n_rows]):
+
+            # ----- Horizontal scrolling -----
+            # --- Row specific---
             if row == self.csr.row - self.win.row and self.win.col > 0:
                 line = "«" + line[self.win.col+1:]
             if len(line) > self.win.n_cols:

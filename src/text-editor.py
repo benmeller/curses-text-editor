@@ -1,24 +1,16 @@
 """
 Simple command line text editor to edit files within PyOS
 
-Code based off tutorial at: https://wasimlorgat.com/editor
+Initial code based off tutorial at: https://wasimlorgat.com/editor
 
 Todo:
-- Screen resizing
-- Title bar and help screen
+- Help screen
+- Title bar 
 """
 import curses
 import curses.ascii
 from os import name
 from time import sleep
-
-filename = "myfile"
-contents = """I am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular fileI am the contents of a particular file
-
-I exist over
-multiple
-lines
-..."""
 
 class Window(object):
     def __init__(self, n_rows, n_cols, row=0, col=0) -> None:
@@ -253,7 +245,7 @@ class TextPad(object):
 
     def draw_screen(self):
         self.scr.erase()
-        
+
         for row, line in enumerate(self.buf[self.win.row:self.win.row+self.win.n_rows]):
 
             # ----- Horizontal scrolling -----
@@ -297,12 +289,17 @@ class TextPad(object):
         
         return self.buf.result()
 
-
-
-
-def main(stdscr, *args, **kwargs):
+def main(stdscr, contents: str, *args, **kwargs):
     """
-    Expects contents=<str>
+    Content should be a string. String will be split up by newline character
+
+    For full control, you will need to set curses.raw() so all inputs can be
+    captured (e.g. ^C, ^Z, etc.):
+        ...
+        curses.raw()
+        mytextpad.edit()
+        curses.noraw()
+        ...
     """
     window = Window(curses.LINES -1, curses.COLS-1)
     cursor = Cursor()
@@ -315,5 +312,9 @@ def main(stdscr, *args, **kwargs):
 
     return buffer.result()
 
-res = curses.wrapper(main, contents=contents, filename=filename)
+contents = """Hello,
+World
+
+This is a multiline file"""
+res = curses.wrapper(main, contents=contents)
 print(res)

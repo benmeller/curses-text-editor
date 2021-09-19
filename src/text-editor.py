@@ -6,7 +6,6 @@ Code based off tutorial at: https://wasimlorgat.com/editor
 Todo:
 - Screen resizing
 - Title bar and help screen
-- Soft wrap if lightweight enough to implement
 """
 import curses
 import curses.ascii
@@ -22,11 +21,27 @@ lines
 ..."""
 
 class Window(object):
-    def __init__(self, n_rows=20, n_cols=20, row=0, col=0) -> None:
+    def __init__(self, n_rows, n_cols, row=0, col=0) -> None:
         self.n_rows = n_rows
         self.n_cols = n_cols
         self.row = row
         self.col = col
+
+        self.switched = False
+
+    def update_screen_size(self, scr: curses.window, csr):
+        """Takes given screen and readjusts rows and cols to new size"""
+        new_rows, new_cols = scr.getmaxyx()
+        new_rows -= 1
+        new_cols -= 1
+
+        # Re-set window height
+        self.n_rows = new_rows
+        self.n_cols = new_cols
+
+        # Move cursor to correct row
+        if (new_rows - self.n_rows) != 0:
+            self.row = csr.row  # Place cursor at top of new sized screen
 
     @property 
     def bottom(self):
@@ -37,7 +52,7 @@ class Window(object):
             self.row -= 1
 
     def down(self, buffer, cursor):
-        if cursor.row == self.bottom and self.bottom < buffer.bottom:
+        if cursor.row == self.bottom + 1 and self.bottom < len(buffer) - 1:
             self.row += 1
     
     def translate(self, cursor):
@@ -208,17 +223,23 @@ class TextPad(object):
 
     def draw_screen(self):
         self.scr.erase()
-        for row, line in enumerate(self.buf[self.win.row:self.win.bottom+1]):
+
+        for row, line in enumerate(self.buf[self.win.row:self.win.row+self.win.n_rows]):
             if row == self.csr.row - self.win.row and self.win.col > 0:
                 line = "«" + line[self.win.col+1:]
             if len(line) > self.win.n_cols:
                 line = line[:self.win.n_cols-1] + "»"
             self.scr.addstr(row, 0, line)
+            
+        self.win.update_screen_size(self.scr, self.csr)
         self.scr.move(*self.win.translate(self.csr))
+
         self.scr.refresh()
 
-    def edit(self, validate=None):
-        # Still need to update screen size somehow
+    def edit(self, validate=None) -> None:
+        """
+        Results of edit are returned upon exit. Can be obtained from buffer.result()
+        """
         self.save_on_exit = False
         while True:
             self.draw_screen()
@@ -237,8 +258,7 @@ class TextPad(object):
                 sleep(0.5)
                 break 
         
-        # Need to figure out a way to get screen contents
-        return 
+        return self.buf.result()
 
 
 

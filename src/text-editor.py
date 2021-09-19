@@ -143,14 +143,19 @@ class Buffer(object):
                 self.lines.insert(row, new)
 
 class TextPad(object):
-    """
-    A container for window, cursor and buffer to create a single interface for
-    editing a file.
+    """A container for window, cursor and buffer to create a single interface
+    for editing a file."""
 
-    Commands:
-    Ctl-W       Terminate with save flag
-    Ctl-Q       Terminate without save flag
+    HELPSTRING = """TEXT EDITOR HELP
+A bare bones text editor to edit files. You can move
+around with arrow keys, type, delete (mostly), etc. 
+
+COMMANDS:
+CTL+I       Show help screen
+Ctl+W       Save and quit
+Ctl+C       Quit (do not save)
     """
+
     def __init__(self, scr, win: Window, cursor: Cursor, buffer: Buffer, debug=False) -> None:
         self.scr = scr
         self.win = win 
@@ -169,9 +174,56 @@ class TextPad(object):
         self.win.up(self.csr)
         self.win.horizontal_scroll(self.csr)
     
+    def help_screen(self):
+        """
+        Static display-only help screen. Will not resize to screen, has no cursor.
+        """
+        help_str = self.HELPSTRING.split("\n")
+        
+        while True:
+            self.draw_screen(buf=help_str)
+            self.add_help_command_to_screen(help_str="Press CTL+I to leave help screen")
+            self.scr.refresh()
+            ch = self.scr.getch()
+            if ch == curses.ascii.TAB:              # ^I
+                return 1
+            if ch == curses.ascii.ETX:              # ^C
+                return 0
+
+
+    def check_movement(self, ch):
+        """Checks if an arrow key or movement was pressed and carries out
+        movement"""
+        # Movement
+        if ch == curses.KEY_UP:                     # Up
+            self.csr.up(self.buf)
+            self.win.up(self.csr)
+            self.win.horizontal_scroll(self.csr)
+            return 1
+        elif ch == curses.KEY_DOWN:                 # Down
+            self.csr.down(self.buf)
+            self.win.down(self.buf, self.csr)
+            self.win.horizontal_scroll(self.csr)
+            return 1
+        elif ch == curses.KEY_LEFT:                 # Left
+            self.csr.left(self.buf) 
+            self.win.up(self.csr)
+            self.win.horizontal_scroll(self.csr)
+            return 1
+        elif ch == curses.KEY_RIGHT:                # Right
+            self.csr.right(self.buf)
+            self.win.down(self.buf, self.csr)
+            self.win.horizontal_scroll(self.csr)
+            return 1
+        return 0
+
     def do_command(self, ch):
         """Taken from Python curses.textpad module. Process single editing
         command"""
+        # Movement
+        if self.check_movement(ch):
+            return 1
+
         # Printable
         if ch == ord('\n'):                         # Newline
             self.buf.split(self.csr)
@@ -189,24 +241,9 @@ class TextPad(object):
                 self.left()
                 self.buf.delete(self.csr)
 
-        # Movement
-        elif ch == curses.KEY_UP:                   # Up
-            self.csr.up(self.buf)
-            self.win.up(self.csr)
-            self.win.horizontal_scroll(self.csr)
-        elif ch == curses.KEY_DOWN:                 # Down
-            self.csr.down(self.buf)
-            self.win.down(self.buf, self.csr)
-            self.win.horizontal_scroll(self.csr)
-        elif ch == curses.KEY_LEFT:                 # Left
-            self.csr.left(self.buf) 
-            self.win.up(self.csr)
-            self.win.horizontal_scroll(self.csr)
-        elif ch == curses.KEY_RIGHT:                # Right
-            self.csr.right(self.buf)
-            self.win.down(self.buf, self.csr)
-            self.win.horizontal_scroll(self.csr)
-
+        # Help
+        elif ch == curses.ascii.TAB:                 # ^I (Help)
+            return self.help_screen()
 
         # Quit with or without save
         elif ch == curses.ascii.ETB:                # ^W (Write)
@@ -218,7 +255,7 @@ class TextPad(object):
         
         return 1
 
-    def add_details_to_screen(self):
+    def add_debug_to_screen(self):
         new_rows, new_cols = self.scr.getmaxyx()
         new_rows -= 1
         new_cols -= 1
@@ -232,21 +269,37 @@ class TextPad(object):
             f"Line length:   {len(self.buf[self.csr.row])}",
         ]
 
+        # Get longest string so all strings can be padded to same length
+        maxlen = len(max(details, key=len))
+
         for i in range(min(len(details), self.win.n_rows)):
             row = self.win.n_rows - i
+            info_str = details[i].rjust(maxlen)
 
             # To place on right hand side, need to calculate offset from left
             # But if screen shorter than string, offset = 0 and left-chop the string
-            offset = self.win.n_cols - len(details[i])
+            offset = self.win.n_cols - len(info_str)
             col_offset = max(offset, 0)
-            info_str = details[i][max(-offset, 0):]
+            info_str = info_str[max(-offset, 0):]
             
-            self.scr.addstr(row, col_offset, info_str)
+            self.scr.addstr(row, col_offset, info_str, curses.A_REVERSE)
 
-    def draw_screen(self):
+    def add_help_command_to_screen(self, help_str=None):
+        """Shows key combination for help menu in bottom left of screen, chop
+        from right if going offscreen"""
+        if help_str == None:
+            help_str = "Ctl+I for help screen"
+        chop = min(len(help_str), self.win.n_cols)
+        self.scr.addstr(self.win.n_rows, 0, help_str[:chop], curses.A_REVERSE)
+
+    def draw_screen(self, buf=None):
+        """Can pass in any list of strings to display on screen"""
+        if buf == None:
+            buf = self.buf
+
         self.scr.erase()
 
-        for row, line in enumerate(self.buf[self.win.row:self.win.row+self.win.n_rows]):
+        for row, line in enumerate(buf[self.win.row:self.win.row+self.win.n_rows]):
 
             # ----- Horizontal scrolling -----
             # --- Row specific---
@@ -259,7 +312,8 @@ class TextPad(object):
         self.win.update_screen_size(self.scr, self.csr)
 
         if self.debug:
-            self.add_details_to_screen()
+            self.add_debug_to_screen()
+        self.add_help_command_to_screen()
 
         self.scr.move(*self.win.translate(self.csr))
 
@@ -301,11 +355,12 @@ def main(stdscr, contents: str, *args, **kwargs):
         curses.noraw()
         ...
     """
+    curses.use_default_colors()
     window = Window(curses.LINES -1, curses.COLS-1)
     cursor = Cursor()
     buffer = Buffer(contents.split("\n"))
 
-    pad = TextPad(stdscr, window, cursor, buffer, debug=True)
+    pad = TextPad(stdscr, window, cursor, buffer, debug=False)
     curses.raw()
     pad.edit()
     curses.noraw()

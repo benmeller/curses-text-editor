@@ -13,6 +13,15 @@ from os import name
 from time import sleep
 
 class Window(object):
+    """
+    An object used to determine what content to keep in view while using TextPad
+
+    Arguments:
+        n_rows (int): curses.window height
+        n_cols (int): curses.window width
+        row (int): Row to put at top of Window when first started
+        col (int): Col to put at left of Window when first started
+    """
     def __init__(self, n_rows, n_cols, row=0, col=0) -> None:
         self.n_rows = n_rows
         self.n_cols = n_cols
@@ -59,6 +68,18 @@ class Window(object):
         self.col = max(current_page * (self.n_cols  - right_margin) - left_margin, 0)
 
 class Cursor(object):
+    """
+    An object to track the user's position in the TextPad. Combined with the
+    Window class, is used to determine what to show on screen.
+
+    Arguments:
+        row (int): Row number for cursor to start at. No validity checks are
+                   performed to ensure it is within range of buffer.
+        col (int): Col number for cursor to start at. No validity checks are
+                   performed to ensure it is within range of buffer.
+        _col_hint (int): Column position to jump to if the current row in 
+                   buffer is long enough.
+    """
     def __init__(self, row=0, col=0, col_hint=None) -> None:
         self.row = row 
         self.col = col
@@ -102,6 +123,13 @@ class Cursor(object):
         self._col = min(self._col_hint, len(buffer[self.row]))
 
 class Buffer(object):
+    """
+    A class to be used to hold the content being edited.
+
+    Arguments:
+        lines (list): A list of strings to be displayed. Functionality is 
+                      undefined when a string contains a new line
+    """
     def __init__(self, lines) -> None:
         self.lines = lines
 
@@ -112,7 +140,7 @@ class Buffer(object):
         return self.lines[index]
 
     def result(self):
-        return self.lines
+        return "\n".join(self.lines).strip()
 
     @property 
     def bottom(self):
@@ -144,7 +172,26 @@ class Buffer(object):
 
 class TextPad(object):
     """A container for window, cursor and buffer to create a single interface
-    for editing a file."""
+    for editing a file. Once initialised, call edit() to run - similar to 
+    curses.textpad.Textbox. Upon exit, the updated file contents will be 
+    returned.
+    
+    For full control, you will need to set curses.raw() before calling edit()
+    so all inputs can be captured (e.g. ^C, ^Z, etc.):
+        ...
+        curses.raw()
+        mytextpad.edit()
+        curses.noraw()
+        ...
+    
+    Arguments:
+        scr (curses.window):
+        win (Window): object initialised with the current screen size (e.g. 
+                      curses.LINES, curses.COLS or curses.window.getmaxyx())
+        buffer (Buffer): object containing the contents to be displayed/edited
+        debug (boolean): Bool used to display useful information in bottom right
+                         corner of user's terminal
+    """
 
     HELPSTRING = """TEXT EDITOR HELP
 A bare bones text editor to edit files. You can move
@@ -189,7 +236,6 @@ Ctl+C       Quit (do not save)
                 return 1
             if ch == curses.ascii.ETX:              # ^C
                 return 0
-
 
     def check_movement(self, ch):
         """Checks if an arrow key or movement was pressed and carries out
@@ -345,27 +391,21 @@ Ctl+C       Quit (do not save)
 
 def main(stdscr, contents: str, *args, **kwargs):
     """
-    Content should be a string. String will be split up by newline character
-
-    For full control, you will need to set curses.raw() so all inputs can be
-    captured (e.g. ^C, ^Z, etc.):
-        ...
-        curses.raw()
-        mytextpad.edit()
-        curses.noraw()
-        ...
+    Content should be a string. String will be split up by newline character.
+    Naturally this could be changed to support any sort of input - strings,
+    lists, files, you name it. For now, this is convenient.
     """
     curses.use_default_colors()
     window = Window(curses.LINES -1, curses.COLS-1)
     cursor = Cursor()
     buffer = Buffer(contents.split("\n"))
-
     pad = TextPad(stdscr, window, cursor, buffer, debug=False)
+
     curses.raw()
-    pad.edit()
+    result = pad.edit()
     curses.noraw()
 
-    return buffer.result()
+    return result
 
 contents = """Hello,
 World

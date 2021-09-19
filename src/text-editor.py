@@ -39,9 +39,13 @@ class Window(object):
         self.n_rows = new_rows
         self.n_cols = new_cols
 
-        # Move cursor to correct row
+        # Move cursor to somewhere safely on screen
         if (new_rows - self.n_rows) != 0:
             self.row = csr.row  # Place cursor at top of new sized screen
+        
+        # If absolute csr position > window width, change csr.col to onscreen
+        if (csr.col - self.col) > self.n_cols:
+            csr.col = self.col + self.n_cols - 1
 
     @property 
     def bottom(self):
@@ -249,7 +253,7 @@ class TextPad(object):
 
     def draw_screen(self):
         self.scr.erase()
-
+        
         for row, line in enumerate(self.buf[self.win.row:self.win.row+self.win.n_rows]):
 
             # ----- Horizontal scrolling -----

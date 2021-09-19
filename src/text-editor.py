@@ -155,12 +155,13 @@ class TextPad(object):
     Ctl-W       Terminate with save flag
     Ctl-Q       Terminate without save flag
     """
-    def __init__(self, scr, win: Window, cursor: Cursor, buffer: Buffer) -> None:
+    def __init__(self, scr, win: Window, cursor: Cursor, buffer: Buffer, debug=False) -> None:
         self.scr = scr
         self.win = win 
         self.csr = cursor 
         self.buf = buffer 
         self.save_on_exit = False
+        self.debug = debug
 
     def right(self):
         self.csr.right(self.buf)
@@ -221,6 +222,31 @@ class TextPad(object):
         
         return 1
 
+    def add_details_to_screen(self):
+        new_rows, new_cols = self.scr.getmaxyx()
+        new_rows -= 1
+        new_cols -= 1
+        details = [
+            f"R{self.csr.row}, C{self.csr.col}",
+            f"Window height: {self.win.n_rows}",
+            f"Window width:  {self.win.n_cols}",
+            f"Window col:    {self.win.col}",
+            f"Window row:    {self.win.row}",
+            f"Num lines:     {len(self.buf.lines)}",
+            f"Line length:   {len(self.buf[self.csr.row])}",
+        ]
+
+        for i in range(min(len(details), self.win.n_rows)):
+            row = self.win.n_rows - i
+
+            # To place on right hand side, need to calculate offset from left
+            # But if screen shorter than string, offset = 0 and left-chop the string
+            offset = self.win.n_cols - len(details[i])
+            col_offset = max(offset, 0)
+            info_str = details[i][max(-offset, 0):]
+            
+            self.scr.addstr(row, col_offset, info_str)
+
     def draw_screen(self):
         self.scr.erase()
 
@@ -232,6 +258,10 @@ class TextPad(object):
             self.scr.addstr(row, 0, line)
             
         self.win.update_screen_size(self.scr, self.csr)
+
+        if self.debug:
+            self.add_details_to_screen()
+
         self.scr.move(*self.win.translate(self.csr))
 
         self.scr.refresh()
@@ -271,7 +301,7 @@ def main(stdscr, *args, **kwargs):
     cursor = Cursor()
     buffer = Buffer(contents.split("\n"))
 
-    pad = TextPad(stdscr, window, cursor, buffer)
+    pad = TextPad(stdscr, window, cursor, buffer, debug=True)
     curses.raw()
     pad.edit()
     curses.noraw()
